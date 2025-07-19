@@ -5,10 +5,12 @@ enum Op {
   Push(u8),
   Add,
   Sub,
+  Mul,
   Print,
   PrintTop,
   Dup,
   Swap,
+  Drop,
 }
 
 impl Op {
@@ -17,10 +19,12 @@ impl Op {
       Op::Push(_) => 0x01,
       Op::Add => 0x02,
       Op::Sub => 0x03,
-      Op::Print => 0x04,
-      Op::PrintTop => 0x05,
-      Op::Dup => 0x06,
-      Op::Swap => 0x07,
+      Op::Mul => 0x04,
+      Op::Print => 0x05,
+      Op::PrintTop => 0x06,
+      Op::Dup => 0x07,
+      Op::Swap => 0x08,
+      Op::Drop => 0x09,
     }
   }
 
@@ -39,10 +43,12 @@ impl Op {
       },
       ["ADD"] => Op::Add,
       ["SUB"] => Op::Sub,
+      ["MUL"] => Op::Mul,
       ["PRINT"] => Op::Print,
       ["PRINT_TOP"] => Op::PrintTop,
       ["DUP"] => Op::Dup,
       ["SWAP"] => Op::Swap,
+      ["DROP"] => Op::Drop,
       _ => panic!("Unknown or malformed instruction: {parts:?}"),
     }
   }
@@ -78,10 +84,12 @@ impl VM {
       0x01 => self.push(),
       0x02 => self.add(),
       0x03 => self.sub(),
-      0x04 => self.print(),
-      0x05 => self.print_top(),
-      0x06 => self.dup(),
-      0x07 => self.swap(),
+      0x04 => self.mul(),
+      0x05 => self.print(),
+      0x06 => self.print_top(),
+      0x07 => self.dup(),
+      0x08 => self.swap(),
+      0x09 => self.drop(),
       _ => panic!("Unknown opcode: {opcode}"),
     }
   }
@@ -106,6 +114,13 @@ impl VM {
     self.stack.push(result);
   }
 
+  fn mul(&mut self) {
+    let b: u8 = self.stack.pop().expect("Stack underflow");
+    let a: u8 = self.stack.pop().expect("Stack underflow");
+    let result: u8 = a.wrapping_mul(b);
+    self.stack.push(result);
+  }
+
   fn print(&mut self) {
     let value: u8 = self.stack.pop().expect("Stack underflow");
     println!("{value}");
@@ -127,6 +142,10 @@ impl VM {
     self.stack.push(b);
     self.stack.push(a);
   }
+
+  fn drop(&mut self) {
+    self.stack.pop().expect("Stack underflow");
+  }
 }
 
 fn assemble(source: &str) -> Vec<u8> {
@@ -141,7 +160,7 @@ fn assemble(source: &str) -> Vec<u8> {
 }
 
 fn assemble_line(bytecode: &mut Vec<u8>, line: &str) -> ControlFlow<()> {
-  let parts: Vec<&str> = line.trim().split_whitespace().collect();
+  let parts: Vec<&str> = line.split_whitespace().collect();
 
   if parts.is_empty() {
     return ControlFlow::Break(());
@@ -171,6 +190,11 @@ PUSH 7
 PRINT_TOP
 SWAP
 PRINT_TOP
+DROP
+PUSH 20
+PUSH 20
+MUL
+PRINT
 "#;
 
   let program: Vec<u8> = assemble(source);
